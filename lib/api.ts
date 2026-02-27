@@ -46,7 +46,7 @@ async function request<T>(
   } catch {
     return undefined as T;
   }
-
+}
 // Auth
 export const auth = {
   register: (data: AuthRequest) =>
@@ -116,4 +116,12 @@ export const admin = {
   getRoutines: () => request<RoutineResponse[]>("/admin/routines"),
   deleteUser: (id: number) =>
     request<void>(`/admin/users/${id}`, { method: "DELETE" }),
+
+  updateRoutine: (id: number, data: RoutineRequest) =>
+    request<RoutineResponse>(`/admin/routines/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteRoutine: (id: number) =>
+    request<void>(`/admin/routines/${id}`, { method: "DELETE" }),
 };

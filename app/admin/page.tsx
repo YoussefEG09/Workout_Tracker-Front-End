@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Users, Dumbbell, Trash2, ShieldCheck } from "lucide-react";
+import { Users, Dumbbell, Trash2, ShieldCheck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,6 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { admin as adminApi } from "@/lib/api";
 import type { User, RoutineResponse } from "@/lib/types";
 
@@ -34,6 +44,10 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingRoutines, setLoadingRoutines] = useState(true);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deletingRoutine, setDeletingRoutine] = useState<RoutineResponse | null>(null);
+  const [editingRoutine, setEditingRoutine] = useState<RoutineResponse | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", description: "" });
+  const [saving, setSaving] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -72,6 +86,38 @@ export default function AdminPage() {
       fetchRoutines();
     } catch {
       toast.error("Error al eliminar el usuario");
+    }
+  }
+
+  async function handleDeleteRoutine() {
+    if (!deletingRoutine) return;
+    try {
+      await adminApi.deleteRoutine(deletingRoutine.id);
+      toast.success("Rutina eliminada");
+      setDeletingRoutine(null);
+      await fetchRoutines();
+    } catch {
+      toast.error("Error al eliminar la rutina");
+    }
+  }
+
+  function openEditRoutine(routine: RoutineResponse) {
+    setEditingRoutine(routine);
+    setEditForm({ name: routine.name, description: routine.description || "" });
+  }
+
+  async function handleEditRoutine() {
+    if (!editingRoutine) return;
+    setSaving(true);
+    try {
+      await adminApi.updateRoutine(editingRoutine.id, editForm);
+      toast.success("Rutina actualizada");
+      setEditingRoutine(null);
+      await fetchRoutines();
+    } catch {
+      toast.error("Error al actualizar la rutina");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -220,6 +266,7 @@ export default function AdminPage() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Descripcion</TableHead>
                       <TableHead>Usuario</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -236,8 +283,30 @@ export default function AdminPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {routine.username || `User #${routine.userId}`}
+                            {routine.user?.username || "-"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-primary"
+                              onClick={() => openEditRoutine(routine)}
+                              aria-label={`Editar rutina ${routine.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeletingRoutine(routine)}
+                              aria-label={`Eliminar rutina ${routine.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -273,6 +342,79 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!deletingRoutine}
+        onOpenChange={(v) => !v && setDeletingRoutine(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar rutina</AlertDialogTitle>
+            <AlertDialogDescription>
+              {"Estas seguro de que quieres eliminar la rutina "}
+              <strong>{deletingRoutine?.name}</strong>
+              {"? Se eliminaran todos sus ejercicios y el progreso asociado. Esta accion no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRoutine}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar rutina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={!!editingRoutine}
+        onOpenChange={(v) => !v && setEditingRoutine(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar rutina</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Nombre</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="Nombre de la rutina"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Descripcion</Label>
+              <Textarea
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, description: e.target.value }))
+                }
+                placeholder="Descripcion de la rutina"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingRoutine(null)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleEditRoutine} disabled={saving || !editForm.name.trim()}>
+              {saving ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

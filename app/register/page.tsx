@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,9 +31,14 @@ export default function RegisterPage() {
       toast.error("La contrasena debe tener al menos 4 caracteres");
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Introduce un correo electronico valido");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await auth.register({ username, password });
+      const res = await auth.register({ username, email, password });
       login(res.token);
       toast.success("Cuenta creada correctamente");
       router.push("/dashboard");
@@ -90,6 +96,18 @@ export default function RegisterPage() {
                 placeholder="tu_usuario"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="email">Correo electronico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="tu@correo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
